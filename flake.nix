@@ -96,8 +96,39 @@
       let
         pkgs = nixpkgs.legacyPackages.${system};
         
-        # Simple dynamic version using git info
-        version = if self ? shortRev then "-${self.shortRev}" else "-dirty";
+        # Dynamic version using git tags with smart fallback
+        version =
+          let
+            # Create a derivation that reads git tag information
+            getVersion = pkgs.runCommand "get-version" {
+              nativeBuildInputs = [ pkgs.git ];
+              preferLocalBuild = true;
+              allowSubstitutes = false;
+            } ''
+              cd ${./.}
+              
+              # Try to get the exact tag if we're on a tagged commit
+              if tag=$(git describe --exact-match --tags HEAD 2>/dev/null); then
+                echo "$tag" > $out
+              # Try to get tag with distance (e.g., "v1.0.0-5-gabcdef")
+              elif describe=$(git describe --tags HEAD 2>/dev/null); then
+                echo "$describe" > $out
+              # Fallback to short commit hash
+              elif hash=$(git rev-parse --short HEAD 2>/dev/null); then
+                echo "dev-$hash" > $out
+              else
+                echo "dev-unknown" > $out
+              fi
+            '';
+          in
+          # Use the derivation result when we have a clean repo
+          if self ? rev then
+            builtins.readFile getVersion
+          # For dirty working tree, add dirty suffix
+          else if self ? shortRev then
+            "${builtins.readFile getVersion}-dirty"
+          else
+            "dev-dirty";
       in
       {
         # Build packages
