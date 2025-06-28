@@ -102,8 +102,12 @@
             # Use import-from-derivation to get git tag info
             gitVersion = import (pkgs.runCommand "get-git-version.nix" {
               nativeBuildInputs = [ pkgs.git pkgs.coreutils ];
+              # Allow accessing the current working directory  
+              preferLocalBuild = true;
+              allowSubstitutes = false;
             } ''
-              cd ${./.}
+              # Use the actual git repository from the working directory
+              cd ${toString ./.}
               
               # Get git describe output and format as Nix string
               if VERSION=$(git describe --exact-match --tags HEAD 2>/dev/null); then
