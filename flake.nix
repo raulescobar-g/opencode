@@ -95,41 +95,7 @@
     flake-utils.lib.eachDefaultSystem (system:
       let
         pkgs = nixpkgs.legacyPackages.${system};
-        
-                # Dynamic version using git tags
-        version = 
-          let
-            # Use import-from-derivation to get git tag info
-            gitVersion = import (pkgs.runCommand "get-git-version.nix" {
-              nativeBuildInputs = [ pkgs.git pkgs.coreutils ];
-              # Allow accessing the current working directory  
-              preferLocalBuild = true;
-              allowSubstitutes = false;
-            } ''
-              # Use the actual git repository from the working directory
-              cd ${toString ./.}
-              
-              # Get git describe output and format as Nix string
-              if VERSION=$(git describe --exact-match --tags HEAD 2>/dev/null); then
-                echo "\"$VERSION\"" > $out
-              elif VERSION=$(git describe --tags HEAD 2>/dev/null); then
-                echo "\"$VERSION\"" > $out
-              elif VERSION=$(git rev-parse --short HEAD 2>/dev/null); then
-                echo "\"dev-$VERSION\"" > $out
-              else
-                echo "\"dev-unknown\"" > $out
-              fi
-            '');
-          in
-          if self ? rev then
-            # Clean checkout - use git describe result
-            gitVersion
-          else if self ? shortRev then
-            # Dirty checkout - append dirty
-            "${gitVersion}-dirty"
-          else
-            # Local development fallback
-            "dev-dirty";
+        version = "0.1.157";
       in
       {
         # Build packages
