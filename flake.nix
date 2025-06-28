@@ -13,7 +13,6 @@
         let
           cfg = config.packages.opencode;
           
-          # Get the opencode package for this system
           opencodePackage = self.packages.${pkgs.system}.opencode;
         in
         {
@@ -30,7 +29,6 @@
           config = lib.mkIf cfg.enable {
             home.packages = [ cfg.package ];
             
-            # Optional: Add shell aliases or other configuration
             programs.bash.shellAliases = lib.mkIf config.programs.bash.enable {
               oc = "opencode";
             };
@@ -45,7 +43,6 @@
           };
         };
         
-      # Alias for convenience
       homeManagerModules.opencode = self.homeManagerModules.default;
 
       # NixOS module
@@ -53,7 +50,6 @@
         let
           cfg = config.programs.opencode;
           
-          # Get the opencode package for this system
           opencodePackage = self.packages.${pkgs.system}.opencode;
         in
         {
@@ -74,10 +70,8 @@
           };
 
           config = lib.mkIf cfg.enable {
-            # Install the package system-wide
             environment.systemPackages = [ cfg.package ];
             
-            # Add shell aliases if enabled
             programs.bash.shellAliases = lib.mkIf cfg.enableShellAliases {
               oc = "opencode";
             };
@@ -108,7 +102,7 @@
       {
         # Build packages
         packages = {
-          # Go TUI binary (intermediate build)
+          # go tui bin 
           opencode-tui = pkgs.buildGoModule rec {
             pname = "opencode-tui";
             inherit version;
@@ -134,30 +128,29 @@
             };
           };
           
-          # Main OpenCode package with bun wrapper
+          # main opencode package with bun wrapper
           opencode = pkgs.buildNpmPackage rec {
             pname = "opencode";
             inherit version;
             
             src = ./packages/opencode;
-            
-            # Lock file hash - will need to be updated on first build
             npmDepsHash = "sha256-DtgGECVz9mtrsK+/psKSrZsBMdff+sZs5hlCi/xCCHM=";
-            
-            # Fix npm dependency issues
             makeCacheWritable = true;
+
+            # are u kidding me wight meow
             npmFlags = [ "--legacy-peer-deps" ];
             
             nativeBuildInputs = with pkgs; [
               bun
             ];
-            
+
+            # this might not even be needed 
             buildInputs = with pkgs; [
-              fzf        # Runtime dependency from AUR
-              ripgrep    # Runtime dependency from AUR  
+              fzf        
+              ripgrep    
             ];
             
-            # Copy the vendored package-lock.json as suggested by the hint
+            # TODO(raul): fix meow :3
             postPatch = ''
               # Copy the pre-generated package-lock.json
               cp ${./packages/opencode/package-lock.json} package-lock.json
@@ -168,7 +161,7 @@
                 --replace '"ai": "catalog:"' '"ai": "4.3.16"' \
                 --replace '"zod": "catalog:"' '"zod": "3.24.2"'
               
-              # Patch the models macro to avoid network access during build
+              # nix doesnt have network access, so leave models empty, users will have no cache :( 
               cat > src/provider/models-macro.ts << 'EOF'
 export async function data() {
   // Fallback data for build-time - actual data will be fetched at runtime
@@ -177,13 +170,11 @@ export async function data() {
 EOF
             '';
             
-            # Copy the tui source for building
             preBuild = ''
-              # Copy the pre-built TUI binary instead of building from source
+              # copy the pre-built TUI binary instead of building from source
               cp ${self.packages.${system}.opencode-tui}/bin/opencode tui-binary
             '';
             
-            # Don't run npm scripts during dependency installation
             dontNpmBuild = true;
             
             buildPhase = ''
@@ -216,79 +207,15 @@ EOF
             };
           };
           
-          # Development build (for local development)
-          opencode-dev = pkgs.stdenv.mkDerivation rec {
-            pname = "opencode-dev";
-            inherit version;
-            
-            src = ./.;
-            
-            nativeBuildInputs = with pkgs; [
-              bun
-              nodejs_24
-            ];
-            
-            # Don't try to fetch dependencies in build
-            dontBuild = true;
-            dontConfigure = true;
-            
-            installPhase = ''
-              mkdir -p $out/bin $out/share/opencode
-              
-              # Copy the source for development
-              cp -r . $out/share/opencode/src
-              
-              # Create a development wrapper script
-              cat > $out/bin/opencode-dev << 'EOF'
-#!/bin/sh
-cd "$out/share/opencode/src"
-if [ ! -d node_modules ]; then
-  echo "Installing dependencies..."
-  bun install
-fi
-exec bun run packages/opencode/src/index.ts "$@"
-EOF
-              chmod +x $out/bin/opencode-dev
-            '';
-            
-            meta = with pkgs.lib; {
-              description = "OpenCode development version with Node.js wrapper";
-              homepage = "https://github.com/sst/opencode";
-              license = licenses.mit;
-              maintainers = [ ];
-              platforms = platforms.unix;
-            };
-          };
-          
-          # Default package points to the simple Go package (best for nixpkgs)
           default = self.packages.${system}.opencode;
         };
 
+        # for dev
         devShells.default = pkgs.mkShell {
           buildInputs = with pkgs; [
-            # Core runtime requirements
-            bun              # JavaScript runtime and package manager (Bun 1.x)
-            go_1_24          # Go compiler 1.24.x as specified in README
-            nodejs_24        # Node.js for TypeScript/web development
+            bun              
+            go_1_24          
           ];
-
-          shellHook = ''
-            # Welcome message
-            echo "🚀 OpenCode development environment loaded!"
-            echo ""
-            echo "Available packages:"
-            echo "  • nix build                   - Simple Go binary (recommended for nixpkgs)"
-            echo "  • nix build .#opencode   - Full wrapper with bun (complex)"
-            echo "  • nix build .#opencode-dev    - Development version"
-            echo ""
-            echo "Getting started:"
-            echo "  1. Run 'bun install' to install dependencies"
-            echo "  2. Run 'bun run packages/opencode/src/index.ts' to start opencode"
-            echo "  3. Run 'nix build' to build the full package with bun wrapper"
-            echo "  4. Run 'nix build .#opencode-tui' to build just the Go TUI"
-            echo ""
-          '';
-
         };
         
         # Apps for easy running
