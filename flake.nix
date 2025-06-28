@@ -96,38 +96,35 @@
       let
         pkgs = nixpkgs.legacyPackages.${system};
         
-        # Dynamic version using git tags with smart fallback
-        version =
+                # Dynamic version using git tags
+        version = 
           let
-            # Create a derivation that reads git tag information
-            getVersion = pkgs.runCommand "get-version" {
-              nativeBuildInputs = [ pkgs.git ];
-              preferLocalBuild = true;
-              allowSubstitutes = false;
-                         } ''
-               cd ${./.}
-               
-               # Try to get the exact tag if we're on a tagged commit
-               if tag=$(git describe --exact-match --tags HEAD 2>/dev/null); then
-                 echo -n "$tag" > $out
-               # Try to get tag with distance (e.g., "v1.0.0-5-gabcdef")
-               elif describe=$(git describe --tags HEAD 2>/dev/null); then
-                 echo -n "$describe" > $out
-               # Fallback to short commit hash
-               elif hash=$(git rev-parse --short HEAD 2>/dev/null); then
-                 echo -n "dev-$hash" > $out
-               else
-                 echo -n "dev-unknown" > $out
-               fi
-             '';
+            # Use import-from-derivation to get git tag info
+            gitVersion = import (pkgs.runCommand "get-git-version.nix" {
+              nativeBuildInputs = [ pkgs.git pkgs.coreutils ];
+            } ''
+              cd ${./.}
+              
+              # Get git describe output and format as Nix string
+              if VERSION=$(git describe --exact-match --tags HEAD 2>/dev/null); then
+                echo "\"$VERSION\"" > $out
+              elif VERSION=$(git describe --tags HEAD 2>/dev/null); then
+                echo "\"$VERSION\"" > $out
+              elif VERSION=$(git rev-parse --short HEAD 2>/dev/null); then
+                echo "\"dev-$VERSION\"" > $out
+              else
+                echo "\"dev-unknown\"" > $out
+              fi
+            '');
           in
-          # Use the derivation result when we have a clean repo
           if self ? rev then
-            builtins.readFile getVersion
-          # For dirty working tree, add dirty suffix
+            # Clean checkout - use git describe result
+            gitVersion
           else if self ? shortRev then
-            "${builtins.readFile getVersion}-dirty"
+            # Dirty checkout - append dirty
+            "${gitVersion}-dirty"
           else
+            # Local development fallback
             "dev-dirty";
       in
       {
