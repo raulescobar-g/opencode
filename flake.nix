@@ -104,22 +104,22 @@
               nativeBuildInputs = [ pkgs.git ];
               preferLocalBuild = true;
               allowSubstitutes = false;
-            } ''
-              cd ${./.}
-              
-              # Try to get the exact tag if we're on a tagged commit
-              if tag=$(git describe --exact-match --tags HEAD 2>/dev/null); then
-                echo "$tag" > $out
-              # Try to get tag with distance (e.g., "v1.0.0-5-gabcdef")
-              elif describe=$(git describe --tags HEAD 2>/dev/null); then
-                echo "$describe" > $out
-              # Fallback to short commit hash
-              elif hash=$(git rev-parse --short HEAD 2>/dev/null); then
-                echo "dev-$hash" > $out
-              else
-                echo "dev-unknown" > $out
-              fi
-            '';
+                         } ''
+               cd ${./.}
+               
+               # Try to get the exact tag if we're on a tagged commit
+               if tag=$(git describe --exact-match --tags HEAD 2>/dev/null); then
+                 echo -n "$tag" > $out
+               # Try to get tag with distance (e.g., "v1.0.0-5-gabcdef")
+               elif describe=$(git describe --tags HEAD 2>/dev/null); then
+                 echo -n "$describe" > $out
+               # Fallback to short commit hash
+               elif hash=$(git rev-parse --short HEAD 2>/dev/null); then
+                 echo -n "dev-$hash" > $out
+               else
+                 echo -n "dev-unknown" > $out
+               fi
+             '';
           in
           # Use the derivation result when we have a clean repo
           if self ? rev then
