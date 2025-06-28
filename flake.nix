@@ -96,8 +96,17 @@
       let
         pkgs = nixpkgs.legacyPackages.${system};
         
-        # Version from git or default
-        version = "0.1.157";
+        # Dynamic version from git describe (reads tags)
+        version = 
+          if self ? shortRev 
+          then builtins.readFile (pkgs.runCommand "git-version" {
+            src = self;
+            buildInputs = [ pkgs.git ];
+          } ''
+            cd $src
+            git describe --tags --always 2>/dev/null | tr -d '\n' > $out
+          '')
+          else "dirty";
       in
       {
         # Build packages
