@@ -96,17 +96,8 @@
       let
         pkgs = nixpkgs.legacyPackages.${system};
         
-        # Dynamic version from git describe (reads tags)
-        version = 
-          if self ? shortRev 
-          then builtins.readFile (pkgs.runCommand "git-version" {
-            src = self;
-            buildInputs = [ pkgs.git ];
-          } ''
-            cd $src
-            git describe --tags --always 2>/dev/null | tr -d '\n' > $out
-          '')
-          else "dirty";
+        # Simple dynamic version using git info
+        version = if self ? shortRev then "-${self.shortRev}" else "-dirty";
       in
       {
         # Build packages
