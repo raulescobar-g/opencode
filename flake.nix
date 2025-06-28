@@ -7,6 +7,97 @@
   };
 
   outputs = { self, nixpkgs, flake-utils }:
+    {
+      # Home Manager module
+      homeManagerModules.default = { config, lib, pkgs, ... }:
+        let
+          cfg = config.packages.opencode;
+          
+          # Get the opencode package for this system
+          opencodePackage = self.packages.${pkgs.system}.opencode;
+        in
+        {
+          options.packages.opencode = {
+            enable = lib.mkEnableOption "OpenCode AI coding agent";
+            
+            package = lib.mkOption {
+              type = lib.types.package;
+              default = opencodePackage;
+              description = "The OpenCode package to install";
+            };
+          };
+
+          config = lib.mkIf cfg.enable {
+            home.packages = [ cfg.package ];
+            
+            # Optional: Add shell aliases or other configuration
+            programs.bash.shellAliases = lib.mkIf config.programs.bash.enable {
+              oc = "opencode";
+            };
+            
+            programs.zsh.shellAliases = lib.mkIf config.programs.zsh.enable {
+              oc = "opencode";
+            };
+            
+            programs.fish.shellAliases = lib.mkIf config.programs.fish.enable {
+              oc = "opencode";
+            };
+          };
+        };
+        
+      # Alias for convenience
+      homeManagerModules.opencode = self.homeManagerModules.default;
+
+      # NixOS module
+      nixosModules.default = { config, lib, pkgs, ... }:
+        let
+          cfg = config.programs.opencode;
+          
+          # Get the opencode package for this system
+          opencodePackage = self.packages.${pkgs.system}.opencode;
+        in
+        {
+          options.programs.opencode = {
+            enable = lib.mkEnableOption "OpenCode AI coding agent";
+            
+            package = lib.mkOption {
+              type = lib.types.package;
+              default = opencodePackage;
+              description = "The OpenCode package to install";
+            };
+            
+            enableShellAliases = lib.mkOption {
+              type = lib.types.bool;
+              default = true;
+              description = "Whether to enable the 'oc' shell alias for opencode";
+            };
+          };
+
+          config = lib.mkIf cfg.enable {
+            # Install the package system-wide
+            environment.systemPackages = [ cfg.package ];
+            
+            # Add shell aliases if enabled
+            programs.bash.shellAliases = lib.mkIf cfg.enableShellAliases {
+              oc = "opencode";
+            };
+            
+            programs.zsh.shellAliases = lib.mkIf cfg.enableShellAliases {
+              oc = "opencode";
+            };
+            
+            programs.fish.shellAliases = lib.mkIf cfg.enableShellAliases {
+              oc = "opencode";
+            };
+            
+            # Optional: Set up any system-level configuration
+            # environment.variables.OPENCODE_SYSTEM = "true";
+          };
+        };
+        
+      # Alias for convenience
+      nixosModules.opencode = self.nixosModules.default;
+    } //
     flake-utils.lib.eachDefaultSystem (system:
       let
         pkgs = nixpkgs.legacyPackages.${system};
