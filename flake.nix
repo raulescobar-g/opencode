@@ -104,7 +104,7 @@
     }
     // flake-utils.lib.eachDefaultSystem (system: let
       pkgs = nixpkgs.legacyPackages.${system};
-      version = "0.1.163";
+      version = "0.1.164";
     in {
       # Build packages
       packages = {
@@ -238,4 +238,3 @@
       };
     });
 }
-
